@@ -1,7 +1,21 @@
 from django.db import models
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from typing import List, Optional
+from typing import List, Optional, Callable
+
+test = {}
+
+def cache(function: Callable):
+    """
+    Decorator for Cache API Query in Another Collection to Faster
+    """
+
+    def wrapper(*args, **kwargs):
+        res = function(*args, **kwargs)
+        test[(args)] = res
+        return res
+
+    return wrapper
 
 # Create your models here.
 class Transaction:
@@ -10,6 +24,7 @@ class Transaction:
     """
 
     @staticmethod
+    @cache
     def result(type: str, mode: str, merchantId: Optional[str] = None) -> List[dict]:
         """
         Static Method for Parse API Query & Return the Result in List Contains Dictionary
