@@ -25,7 +25,7 @@ class Transaction:
 
     @staticmethod
     @cache
-    def result(type: str, mode: str, merchantId: Optional[str] = None) -> List[dict]:
+    def __result(type: str, mode: str, merchantId: Optional[str] = None) -> List[dict]:
         """
         Static Method for Parse API Query & Return the Result in List Contains Dictionary
 
@@ -59,3 +59,22 @@ class Transaction:
             answer = db.transactions.aggregate(pipeline)
 
         return [ans for ans in answer]
+
+    @staticmethod
+    def result(type: str, mode: str, merchantId: Optional[str] = None) -> List[dict]:
+        """
+        Fast Caching Method for Parse API Query & Return the Result in List Contains Dictionary
+
+        Args:
+            type (str): Specifies the Type of Output Value [count, amount]
+            mode (str): Specifies the Type of Report Category [daily, weekly, monthly]
+            merchantId (Optional[str]): Mongo ObjectId if not Submit Information of All Users
+
+        Returns:
+            A List of Objects Contains key for Horizontal Axis and value for Vertical Axis
+        """
+
+        if (type, mode, merchantId) not in test:
+            print('Calculating...')
+            Transaction.__result(type, mode, merchantId)
+        return test[(type, mode, merchantId)]
