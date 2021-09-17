@@ -10,12 +10,18 @@ def cache(function: Callable):
 
     def wrapper(*args, **kwargs):
         res = function(*args, **kwargs)
+
         with MongoClient('mongodb://localhost:27017/') as client:
             db = client.zibal
+
+            if db.cache.count_documents({}) == 0:
+                db.cache.create_index('key')
+
             db.cache.insert_one({
                 'key': args,
                 'value': res
             })
+
         return res
 
     return wrapper
