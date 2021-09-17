@@ -28,16 +28,32 @@ class Transaction:
             'weekly': '$week',
             'daily': '$dayOfYear'
         }
+
         if merchantId is not None:
             pipeline.append({
                 '$match': {'merchantId': ObjectId(merchantId)}
             })
-        pipeline.append({
+
+        pipeline.extend([{
             '$group': {
-                '_id': {case[mode]: '$createdAt'},
-                'value': {'$sum': 1 if type == 'count' else '$amount'}
+                '_id': {
+                    'pk': {
+                        case[mode]: '$createdAt'
+                    },
+                    'year': {
+                        '$year': '$createdAt'
+                    }
+                },
+                'value': {
+                    '$sum': 1 if type == 'count' else '$amount'
+                }
             }
-        })
+        },{
+            '$sort': {
+                '_id.year': 1,
+                '_id.pk': 1
+            }
+        }])
 
         with MongoClient('mongodb://localhost:27017/') as client:
             db = client.zibal
