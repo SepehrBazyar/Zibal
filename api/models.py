@@ -3,8 +3,6 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from typing import List, Optional, Callable
 
-test = {}
-
 def cache(function: Callable):
     """
     Decorator for Cache API Query in Another Collection to Faster
@@ -12,7 +10,12 @@ def cache(function: Callable):
 
     def wrapper(*args, **kwargs):
         res = function(*args, **kwargs)
-        test[(args)] = res
+        with MongoClient('mongodb://localhost:27017/') as client:
+            db = client.zibal
+            db.cache.insert_one({
+                'key': args,
+                'value': res
+            })
         return res
 
     return wrapper
@@ -74,7 +77,20 @@ class Transaction:
             A List of Objects Contains key for Horizontal Axis and value for Vertical Axis
         """
 
-        if (type, mode, merchantId) not in test:
-            print('Calculating...')
-            Transaction.__result(type, mode, merchantId)
-        return test[(type, mode, merchantId)]
+        args = (type, mode, merchantId)
+        with MongoClient('mongodb://localhost:27017/') as client:
+            db = client.zibal
+            res = (db.cache.find_one(
+                {
+                    'key': args
+                },
+                {
+                    '_id': 0,
+                    'key': 0
+                }
+            ) or {}).get('value', None)
+        
+        if res is None:
+            res = Transaction.__result(*args)
+        
+        return res
