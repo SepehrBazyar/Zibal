@@ -1,7 +1,7 @@
 from django.db import models
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from typing import List, Optional
+from typing import List, Optional, Callable
 from datetime import datetime, timedelta
 from calendar import month_name
 
@@ -19,6 +19,29 @@ def normalize(pk: int, year: int, mode: str) -> str:
 
     return f"{year}/{date.month}/{date.day}"
 
+def cache(function: Callable):
+    """
+    Decorator for Cache API Query in Another Collection to Faster
+    """
+
+    def wrapper(*args, **kwargs):
+        res = function(*args, **kwargs)
+
+        with MongoClient('mongodb://localhost:27017/') as client:
+            db = client.zibal
+
+            if db.cache.count_documents({}) == 0:
+                db.cache.create_index('key')
+
+            db.cache.insert_one({
+                'key': args,
+                'value': res
+            })
+
+        return res
+
+    return wrapper
+
 # Create your models here.
 class Transaction:
     """
@@ -26,7 +49,8 @@ class Transaction:
     """
 
     @staticmethod
-    def result(type: str, mode: str, merchantId: Optional[str] = None) -> List[dict]:
+    @cache
+    def __result(type: str, mode: str, merchantId: Optional[str] = None) -> List[dict]:
         """
         Static Method for Parse API Query & Return the Result in List Contains Dictionary
 
@@ -79,3 +103,32 @@ class Transaction:
             'key': normalize(ans['_id']['pk'], ans['_id']['year'], mode),
             'value': ans['value']
         } for ans in answer]
+
+    @staticmethod
+    def result(type: str, mode: str, merchantId: Optional[str] = None) -> List[dict]:
+        """
+        Fast Caching Method for Parse API Query & Return the Result in List Contains Dictionary
+
+        Args:
+            type (str): Specifies the Type of Output Value [count, amount]
+            mode (str): Specifies the Type of Report Category [daily, weekly, monthly]
+            merchantId (Optional[str]): Mongo ObjectId if not Submit Information of All Users
+
+        Returns:
+            A List of Objects Contains key for Horizontal Axis and value for Vertical Axis
+        """
+
+        args = (type, mode, merchantId)
+        with MongoClient('mongodb://localhost:27017/') as client:
+            db = client.zibal
+            res = db.cache.find_one(
+                {
+                    'key': args
+                },
+                {
+                    '_id': 0,
+                    'key': 0
+                }
+            ) or {}
+        
+        return res.get('value') if 'value' in res else Transaction.__result(*args)
