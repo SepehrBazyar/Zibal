@@ -19,5 +19,5 @@ from api.views import TransactionDetailAPIView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('/', TransactionDetailAPIView.as_view(), name='api'),
+    path('', TransactionDetailAPIView.as_view(), name='api'),
 ]
